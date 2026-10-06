@@ -4,6 +4,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import * as pp from "./lib/paypal.mjs";
+import { cleanKey } from "./lib/paypal.mjs";
 import { analyzeDispute, executeActions, condenseDispute } from "./lib/agent.mjs";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
@@ -63,10 +64,10 @@ const routes = [
     // Presence and length only (never values) to debug hosting config.
     keys: Object.fromEntries(["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "ANTHROPIC_API_KEY"].map((k) => {
       const raw = process.env[k] || "";
-      const v = raw.trim();
+      const v = cleanKey(raw);
       return [k, raw ? {
         length: v.length,
-        had_whitespace: raw !== v,
+        had_extra_text: raw !== v,
         // Real keys only use letters, digits, "-" and "_"; anything else means extra text was pasted.
         unexpected_chars: [...new Set(v.replace(/[A-Za-z0-9_-]/g, ""))].join("") || null,
         contains_key_name: /PAYPAL|ANTHROPIC|SECRET|CLIENT/.test(v),
@@ -158,7 +159,7 @@ http.createServer(async (req, res) => {
     if (req.method === "GET" && file) {
       let body = fs.readFileSync(path.join(ROOT, "public", file), "utf8");
       // The client ID is public by design (it ships in every PayPal checkout); the secret never leaves the server.
-      if (file === "shop.html") body = body.replace("__CLIENT_ID__", (process.env.PAYPAL_CLIENT_ID || "").trim());
+      if (file === "shop.html") body = body.replace("__CLIENT_ID__", cleanKey(process.env.PAYPAL_CLIENT_ID));
       res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] });
       return res.end(body);
     }
