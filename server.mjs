@@ -57,7 +57,15 @@ const PRODUCT = { name: "The Overstory (paperback)", sku: "BOOK-OVERSTORY", pric
 const ID = "([A-Za-z0-9-]+)";
 
 const routes = [
-  ["GET", "/api/health", () => ({ ok: true, paypal_env: process.env.PAYPAL_ENV || "sandbox" })],
+  ["GET", "/api/health", () => ({
+    ok: true,
+    paypal_env: process.env.PAYPAL_ENV || "sandbox",
+    // Presence and length only (never values) to debug hosting config.
+    keys: Object.fromEntries(["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "ANTHROPIC_API_KEY"].map((k) => {
+      const raw = process.env[k] || "";
+      return [k, raw ? { length: raw.trim().length, had_whitespace: raw !== raw.trim() } : "missing"];
+    })),
+  })],
   ["GET", "/api/disputes", async (_, __, url) => disputeRows(url.searchParams.has("refresh"))],
   ["GET", `/api/disputes/${ID}`, async ([id]) => {
     const r = await pp.getDispute(id);
@@ -143,7 +151,7 @@ http.createServer(async (req, res) => {
     if (req.method === "GET" && file) {
       let body = fs.readFileSync(path.join(ROOT, "public", file), "utf8");
       // The client ID is public by design (it ships in every PayPal checkout); the secret never leaves the server.
-      if (file === "shop.html") body = body.replace("__CLIENT_ID__", process.env.PAYPAL_CLIENT_ID);
+      if (file === "shop.html") body = body.replace("__CLIENT_ID__", (process.env.PAYPAL_CLIENT_ID || "").trim());
       res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] });
       return res.end(body);
     }
