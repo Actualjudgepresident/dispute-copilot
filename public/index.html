@@ -21,6 +21,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <span class="live" id="live" title="Receiving PayPal webhooks"><span class="live-dot"></span>Live</span>
       <span class="pill pill-sandbox">PayPal sandbox</span>
       <a class="btn btn-ghost" href="/shop" target="_blank" rel="noopener">Test shop ↗</a>
       <button class="btn btn-ghost" id="refresh">Refresh</button>
@@ -59,6 +60,7 @@
   </aside>
   <div class="scrim" id="scrim"></div>
 
+  <div class="toasts" id="toasts" aria-live="polite"></div>
   <script src="/app.js"></script>
 </body>
 </html>

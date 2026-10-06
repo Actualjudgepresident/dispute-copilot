@@ -95,6 +95,7 @@ const columnDefs = [
     valueGetter: (p) => p.data.analysis?.win_probability ?? -1,
     cellRenderer: (p) => {
       const a = p.data.analysis;
+      if (p.data.analyzing) return `<span class="investigating"><span class="spinner"></span> Investigating…</span>`;
       if (!a) return `<button class="btn btn-small" data-analyze="${esc(p.data.dispute_id)}">Run copilot</button>`;
       const [label, cls] = DECISION[a.decision] || [a.decision, "pill-plain"];
       const sent = a.executed ? `<span class="pill pill-plain" title="Actions sent to PayPal">✓ sent</span>` : "";
@@ -350,8 +351,60 @@ async function simulate(kind, btn) {
   }, 3000);
 }
 
+// ---------------------------------------------------------------- Live updates (PayPal webhooks)
+
+const EVENT_TEXT = {
+  "CUSTOMER.DISPUTE.CREATED": "New dispute",
+  "CUSTOMER.DISPUTE.UPDATED": "Dispute updated",
+  "CUSTOMER.DISPUTE.RESOLVED": "Dispute resolved",
+};
+
+function toast(title, body, kind = "info") {
+  const el = document.createElement("div");
+  el.className = `toast toast-${kind}`;
+  el.innerHTML = `<div class="toast-title">${esc(title)}</div>${body ? `<div class="toast-body">${esc(body)}</div>` : ""}`;
+  $("#toasts").append(el);
+  setTimeout(() => el.classList.add("out"), 6000);
+  setTimeout(() => el.remove(), 6500);
+}
+
+function flashRow(id) {
+  setTimeout(() => {
+    const node = grid.getRowNode(id);
+    if (node) grid.flashCells({ rowNodes: [node], flashDuration: 1500 });
+  }, 600);
+}
+
+function connectLive() {
+  const live = new EventSource("/api/events");
+  live.onopen = () => $("#live").classList.add("on");
+  live.onerror = () => $("#live").classList.remove("on"); // EventSource reconnects by itself
+  live.onmessage = async (msg) => {
+    const e = JSON.parse(msg.data);
+    if (e.type === "dispute_event") {
+      const label = EVENT_TEXT[e.event_type] || e.event_type;
+      toast(`${label} from PayPal`, [REASONS[e.reason] || e.reason, e.amount && money(e.amount), e.dispute_id].filter(Boolean).join(" · "),
+        e.event_type.endsWith("CREATED") ? "warn" : "info");
+      await loadQueue(true);
+      flashRow(e.dispute_id);
+      if (current?.dispute.dispute_id === e.dispute_id && !e.event_type.endsWith("CREATED")) {
+        const r = await fetch(`/api/disputes/${e.dispute_id}`);
+        if (r.ok) { current = await r.json(); renderDrawer(); }
+      }
+    } else if (e.type === "analysis_started" || e.type === "analysis_failed") {
+      loadQueue(true);
+    } else if (e.type === "analysis_done") {
+      const [label] = DECISION[e.decision] || [e.decision];
+      toast("Copilot finished", `${e.dispute_id}: ${label} · ${Math.round(e.win_probability)}% chance to win`, "good");
+      await loadQueue(true);
+      flashRow(e.dispute_id);
+    }
+  };
+}
+
 // ---------------------------------------------------------------- Boot
 
 $("#refresh").onclick = () => loadQueue(true);
 loadQueue();
-setInterval(() => loadQueue(), 30_000);
+connectLive();
+setInterval(() => loadQueue(), 60_000); // safety net; webhooks drive updates

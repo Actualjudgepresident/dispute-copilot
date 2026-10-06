@@ -164,3 +164,19 @@ details.card[open] summary { margin-bottom: 10px; }
 .ag-cell .pill, .ag-cell .btn { line-height: 18px; vertical-align: middle; }
 .chip { display: block; }
 .chip b { margin-right: 6px; }
+
+/* Live indicator + toasts */
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.live.on { color: var(--good); }
+.live.on .live-dot { background: var(--good); box-shadow: 0 0 0 0 var(--good); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(26,127,75,.5); } 70% { box-shadow: 0 0 0 7px rgba(26,127,75,0); } 100% { box-shadow: 0 0 0 0 rgba(26,127,75,0); } }
+.investigating { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 600; }
+.toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 20; width: min(420px, calc(100vw - 32px)); }
+.toast { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow); animation: toast-in .25s ease; transition: opacity .4s, transform .4s; }
+.toast-warn { border-left-color: var(--warn); }
+.toast-good { border-left-color: var(--good); }
+.toast.out { opacity: 0; transform: translateY(8px); }
+.toast-title { font-weight: 600; }
+.toast-body { color: var(--muted); font-size: 13px; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }

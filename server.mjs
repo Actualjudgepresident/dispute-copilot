@@ -29,6 +29,7 @@ async function disputeRows(force = false) {
       buyer_name: d.buyer?.name,
       buyer_email: d.buyer?.email,
       item: d.items?.map((i) => i.item_name).join(", "),
+      analyzing: runs.has(item.dispute_id),
       analysis: a ? {
         decision: a.recommendation.decision,
         win_probability: a.recommendation.win_probability,
@@ -61,6 +62,7 @@ const routes = [
   ["GET", "/api/health", () => ({
     ok: true,
     paypal_env: process.env.PAYPAL_ENV || "sandbox",
+    webhook: { url: WEBHOOK_URL, registered: !!webhookId, auto_analyze: AUTO_ANALYZE },
     // Presence and length only (never values) to debug hosting config.
     keys: Object.fromEntries(["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "ANTHROPIC_API_KEY"].map((k) => {
       const raw = process.env[k] || "";
@@ -106,37 +108,104 @@ const routes = [
   ["POST", `/api/orders/${ID}/capture`, ([id]) => pp.captureOrder(id).then((r) => [r.status, r.data])],
 ];
 
+// ---- Analysis runs -------------------------------------------------------
+// A run can be started by a browser or by a webhook; any number of browsers can watch it live.
 // Guard the Claude bill on a public demo: one run per dispute at a time, and an hourly cap.
 const MAX_RUNS_PER_HOUR = Number(process.env.MAX_RUNS_PER_HOUR || 30);
-const running = new Set();
+const runs = new Map(); // dispute_id -> { events: [], watchers: Set<fn> }
 let runTimes = [];
 
-// Server-Sent Events: stream the agent's investigation to the browser.
-async function streamAnalysis(id, req, res) {
-  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
-  const send = (e) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+function startAnalysis(id) {
+  if (runs.has(id)) return runs.get(id);
   runTimes = runTimes.filter((t) => Date.now() - t < 3600_000);
-  if (running.has(id) || runTimes.length >= MAX_RUNS_PER_HOUR) {
-    send({ type: "error", message: running.has(id)
-      ? "The copilot is already investigating this dispute."
-      : "Demo limit reached for this hour. Try again later." });
+  if (runTimes.length >= MAX_RUNS_PER_HOUR) return null;
+  runTimes.push(Date.now());
+
+  const run = { events: [], watchers: new Set() };
+  runs.set(id, run);
+  broadcast({ type: "analysis_started", dispute_id: id });
+  const emit = (e) => { run.events.push(e); for (const w of run.watchers) w(e); };
+
+  analyzeDispute(id, emit)
+    .then((recommendation) => {
+      analyses[id] = { ...(analyses[id] || {}), recommendation, analyzed_at: new Date().toISOString() };
+      saveAnalyses();
+      broadcast({ type: "analysis_done", dispute_id: id, decision: recommendation.decision, win_probability: recommendation.win_probability });
+    })
+    .catch((err) => {
+      console.error("analysis failed:", err.message);
+      broadcast({ type: "analysis_failed", dispute_id: id });
+    })
+    .finally(() => {
+      listCache.at = 0;
+      runs.delete(id);
+      for (const w of run.watchers) w(null); // end of stream
+    });
+  return run;
+}
+
+// SSE: stream one dispute's investigation (joining a run already in progress if there is one).
+function streamAnalysis(id, req, res) {
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+  const run = startAnalysis(id);
+  if (!run) {
+    res.write(`data: ${JSON.stringify({ type: "error", message: "Demo limit reached for this hour. Try again later." })}\n\n`);
     return res.end();
   }
-  running.add(id);
-  runTimes.push(Date.now());
-  let closed = false;
-  req.on("close", () => (closed = true));
-  try {
-    const recommendation = await analyzeDispute(id, (e) => !closed && send(e));
-    analyses[id] = { ...(analyses[id] || {}), recommendation, analyzed_at: new Date().toISOString() };
-    saveAnalyses();
-    listCache.at = 0;
-  } catch (err) {
-    console.error("analysis failed:", err.message);
-  } finally {
-    running.delete(id);
+  const watcher = (e) => (e ? res.write(`data: ${JSON.stringify(e)}\n\n`) : res.end());
+  run.events.forEach(watcher);
+  run.watchers.add(watcher);
+  req.on("close", () => run.watchers.delete(watcher));
+}
+
+// ---- Live updates for every open dashboard --------------------------------
+const clients = new Set();
+function broadcast(e) {
+  for (const res of clients) res.write(`data: ${JSON.stringify(e)}\n\n`);
+}
+function streamEvents(req, res) {
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+  res.write(`data: ${JSON.stringify({ type: "hello", running: [...runs.keys()] })}\n\n`);
+  clients.add(res);
+  req.on("close", () => clients.delete(res));
+}
+// Keep idle connections open through proxies (Render closes silent streams).
+setInterval(() => { for (const res of clients) res.write(": ping\n\n"); }, 25_000);
+
+// ---- PayPal webhooks --------------------------------------------------------
+// Render sets RENDER_EXTERNAL_URL automatically; elsewhere set PUBLIC_URL.
+const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "");
+const WEBHOOK_URL = PUBLIC_URL ? `${PUBLIC_URL}/api/webhooks/paypal` : null;
+let webhookId = process.env.PAYPAL_WEBHOOK_ID || null;
+const AUTO_ANALYZE = process.env.AUTO_ANALYZE !== "false";
+const seenEvents = new Set(); // PayPal retries deliveries; handle each event once
+
+async function handleWebhook(req, res) {
+  const event = await readBody(req).catch(() => null);
+  if (!event?.event_type) return sendJson(res, 400, { error: "Bad payload" });
+
+  webhookId ||= WEBHOOK_URL ? await pp.findWebhookId(WEBHOOK_URL) : null;
+  const verified = webhookId && await pp.verifyWebhook(req.headers, event, webhookId);
+  if (!verified) {
+    console.warn(`webhook ${event.id} (${event.event_type}) failed signature verification - ignored`);
+    return sendJson(res, 400, { error: "Signature verification failed" });
   }
-  res.end();
+  sendJson(res, 200, { received: true }); // acknowledge fast; work happens after
+
+  if (seenEvents.has(event.id)) return;
+  seenEvents.add(event.id);
+  const id = event.resource?.dispute_id;
+  console.log(`webhook ${event.event_type} ${id || ""}`);
+  listCache.at = 0;
+  broadcast({
+    type: "dispute_event",
+    event_type: event.event_type,
+    dispute_id: id,
+    summary: event.summary,
+    amount: event.resource?.dispute_amount,
+    reason: event.resource?.reason,
+  });
+  if (id && AUTO_ANALYZE && event.event_type === "CUSTOMER.DISPUTE.CREATED") startAnalysis(id);
 }
 
 const STATIC = { "/": "index.html", "/shop": "shop.html", "/app.js": "app.js", "/styles.css": "styles.css" };
@@ -147,6 +216,8 @@ http.createServer(async (req, res) => {
   try {
     const sse = url.pathname.match(new RegExp(`^/api/disputes/${ID}/analyze$`));
     if (sse && req.method === "GET") return streamAnalysis(sse[1], req, res);
+    if (url.pathname === "/api/events" && req.method === "GET") return streamEvents(req, res);
+    if (url.pathname === "/api/webhooks/paypal" && req.method === "POST") return handleWebhook(req, res);
 
     for (const [method, pattern, handler] of routes) {
       const m = req.method === method && url.pathname.match(new RegExp(`^${pattern}$`));
@@ -168,4 +239,10 @@ http.createServer(async (req, res) => {
     console.error(err);
     sendJson(res, 500, { error: err.message });
   }
-}).listen(PORT, () => console.log(`Dispute Copilot on http://localhost:${PORT}`));
+}).listen(PORT, async () => {
+  console.log(`Dispute Copilot on http://localhost:${PORT}`);
+  if (WEBHOOK_URL && !webhookId) {
+    webhookId = await pp.findWebhookId(WEBHOOK_URL).catch(() => null);
+    console.log(webhookId ? `PayPal webhook ${webhookId} -> ${WEBHOOK_URL}` : `No PayPal webhook registered for ${WEBHOOK_URL} (run scripts/register-webhook.mjs)`);
+  }
+});
