@@ -20,6 +20,9 @@ The merchant reviews it and approves with one click.
    - checks PayPal shipment tracking and the PayPal transaction record
    - reads the store's shipping, returns and refund policy
 
+   Investigations start automatically after a deploy, and for every new dispute, so the queue is
+   ready when you open it.
+
    It then returns a decision (**Fight / Settle / Refund**), a win probability, the evidence ranked
    by strength, the gaps to close, and the exact PayPal actions to take, including a drafted message
    to the buyer. You can watch the investigation step by step in the UI.
@@ -77,9 +80,14 @@ Set `AUTO_ANALYZE=false` to turn off automatic investigation.
 **Deploy your own:** [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Actualjudgepresident/dispute-copilot)
 (uses `render.yaml`; Render asks for the three keys during setup).
 
-**Demo merchant data:** `data/store.json` stands in for the merchant's store backend (orders,
-fulfilment and policy). Orders are matched to disputes by seller transaction ID, then by buyer email.
-Add an entry with your sandbox transaction ID to see the agent build a case from it.
+**Your order data:** the copilot's evidence comes from the merchant's own order export. Click
+**Import CSV** under *Store orders* and upload an export from your store. Common column names from
+Shopify, WooCommerce and generic exports are recognised automatically (order ID, email, PayPal
+transaction / payment reference, line items, shipping address, fulfilment status, carrier, tracking
+number, shipped/delivered dates, notes). Try `data/examples/shopify-style-export.csv`, or download
+the **Template**. Orders are matched to disputes by PayPal transaction ID, then buyer email + amount.
+An email-only match is flagged as low confidence and the agent won't build a case on it.
+`data/orders.csv` is the demo bookshop's sample export.
 
 ## Architecture
 

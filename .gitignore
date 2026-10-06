@@ -3,3 +3,5 @@ node_modules/
 data/analyses.json
 .claude/
 .DS_Store
+demo_video/
+data/imported-orders.json

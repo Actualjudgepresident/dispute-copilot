@@ -75,7 +75,7 @@ const columnDefs = [
     valueGetter: (p) => +(p.data.amount?.value || 0), valueFormatter: (p) => money(p.data.amount),
   },
   {
-    headerName: "Stage", field: "stage", width: 170,
+    headerName: "Stage", field: "stage", width: 215,
     cellRenderer: (p) => {
       const [label, cls] = STATUS[p.data.status] || [p.data.status, "pill-plain"];
       return `<span class="muted" style="margin-right:6px">${esc(STAGES[p.value] || p.value || "")}</span><span class="pill ${cls}">${esc(label)}</span>`;
@@ -354,6 +354,60 @@ async function simulate(kind, btn) {
   }, 3000);
 }
 
+// ---------------------------------------------------------------- Store orders (CSV import)
+
+const FULFIL = {
+  DELIVERED: ["Delivered", "pill-good"], DIGITAL_DELIVERED: ["Delivered (digital)", "pill-good"],
+  IN_TRANSIT: ["In transit", "pill-info"], SHIPPED: ["Shipped", "pill-info"], FULFILLED: ["Fulfilled", "pill-info"],
+  UNFULFILLED: ["Not shipped", "pill-warn"], PENDING: ["Pending", "pill-warn"], UNKNOWN: ["Unknown", "pill-plain"],
+};
+
+const ordersGrid = agGrid.createGrid($("#orders-grid"), {
+  theme,
+  rowData: [],
+  domLayout: "autoHeight",
+  getRowId: (p) => p.data.order_id,
+  defaultColDef: { sortable: true, resizable: true, filter: true, suppressHeaderMenuButton: true },
+  columnDefs: [
+    { headerName: "Order", field: "order_id", width: 160,
+      cellRenderer: (p) => `<b>${esc(p.value)}</b>${p.data.source === "imported" ? ` <span class="pill pill-info">imported</span>` : ""}` },
+    { headerName: "Buyer", field: "buyer_name", flex: 1, minWidth: 130 },
+    { headerName: "Items", flex: 1.6, minWidth: 180, valueGetter: (p) => p.data.items.map((i) => (i.qty > 1 ? `${i.qty}× ` : "") + i.title).join(", ") },
+    { headerName: "Total", field: "total", width: 100, type: "rightAligned", valueGetter: (p) => +(p.data.total || 0), valueFormatter: (p) => (p.data.total ? `$${p.data.total}` : "–") },
+    { headerName: "Fulfilment", width: 150, valueGetter: (p) => p.data.fulfillment.status,
+      cellRenderer: (p) => { const [l, c] = FULFIL[p.value] || [p.value, "pill-plain"]; return `<span class="pill ${c}">${esc(l)}</span>`; } },
+    { headerName: "Tracking", flex: 1.2, minWidth: 170, valueGetter: (p) => [p.data.fulfillment.carrier, p.data.fulfillment.tracking_number].filter(Boolean).join(" ") || "—",
+      cellClass: "mono" },
+    { headerName: "PayPal txn", field: "seller_transaction_id", width: 170, cellClass: "mono", valueFormatter: (p) => p.value || "—" },
+    { headerName: "Dispute", field: "linked_dispute", width: 170,
+      cellRenderer: (p) => (p.value ? `<span class="pill pill-warn">${esc(p.value)}</span>` : `<span class="muted">—</span>`) },
+  ],
+  onCellClicked: (e) => e.data.linked_dispute && openDrawer(e.data.linked_dispute),
+});
+
+async function loadOrders() {
+  const res = await fetch("/api/store/orders");
+  if (res.ok) ordersGrid.setGridOption("rowData", await res.json());
+}
+
+$("#csv-file").onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  const res = await fetch("/api/store/orders/import", { method: "POST", headers: { "Content-Type": "text/csv" }, body: await file.text() });
+  const data = await res.json();
+  $("#import-result").innerHTML = res.ok
+    ? `<div class="result ok">Imported ${esc(file.name)}: ${data.added} new, ${data.updated} updated order(s). Recognised columns: ${esc(data.mapped.map((m) => m.header).join(", "))}${data.warnings.length ? ` · ${data.warnings.length} warning(s)` : ""}</div>`
+    : `<div class="result err">${esc(data.error)}</div>`;
+  if (res.ok) { await loadOrders(); toast("Orders imported", `${data.added + data.updated} order(s) ready as evidence`, "good"); }
+};
+
+$("#reset-orders").onclick = async () => {
+  await fetch("/api/store/orders/reset", { method: "POST" });
+  $("#import-result").innerHTML = "";
+  loadOrders();
+};
+
 // ---------------------------------------------------------------- Live updates (PayPal webhooks)
 
 const EVENT_TEXT = {
@@ -408,6 +462,6 @@ function connectLive() {
 // ---------------------------------------------------------------- Boot
 
 $("#refresh").onclick = () => loadQueue(true);
-loadQueue();
+loadQueue().then(loadOrders);
 connectLive();
 setInterval(() => loadQueue(), 60_000); // safety net; webhooks drive updates

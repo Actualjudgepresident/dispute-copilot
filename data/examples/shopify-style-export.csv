@@ -1,0 +1,4 @@
+Name,Email,Paid at,Fulfillment Status,Fulfilled at,Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku,Shipping Name,Shipping Address1,Shipping City,Shipping Zip,Shipping Province,Shipping Country,Notes,Payment Reference,Tracking Company,Tracking Number
+#1051,ana.r@example.com,2026-10-03 09:14:00 -0700,fulfilled,2026-10-03 15:02:00 -0700,1,Pachinko (paperback),18.99,PCH-PB,Ana Ruiz,42 Oak Lane,Denver,80203,CO,US,"Gift wrap requested",7RT55102MB3381944,UPS,1Z999AA10123456784
+#1051,ana.r@example.com,,,,2,Bookmark set,4.50,BMK-2,,,,,,,,,,
+#1052,lee.c@example.com,2026-10-04 11:40:00 -0700,unfulfilled,,1,"The Hobbit, illustrated edition",42.00,HOB-ILL,Lee Chen,9 Harbor Rd,Seattle,98101,WA,US,"Backordered - supplier ETA Oct 12, customer emailed",2XW90311KJ4428817,,

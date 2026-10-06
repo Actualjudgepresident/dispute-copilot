@@ -179,3 +179,8 @@ details.card[open] summary { margin-bottom: 10px; }
 .toast-title { font-weight: 600; }
 .toast-body { color: var(--muted); font-size: 13px; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+.panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.panel-head .muted { max-width: 640px; margin-top: 2px; }
+#import-result .result { margin: 10px 16px 0; }
+@media (max-width: 760px) { .panel-head { flex-direction: column; align-items: flex-start; gap: 10px; } }

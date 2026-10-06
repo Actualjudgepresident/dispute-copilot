@@ -6,6 +6,7 @@ import path from "node:path";
 import * as pp from "./lib/paypal.mjs";
 import { cleanKey } from "./lib/paypal.mjs";
 import { analyzeDispute, executeActions, condenseDispute } from "./lib/agent.mjs";
+import * as store from "./lib/store.mjs";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const PORT = Number(process.env.PORT || 3000);
@@ -63,6 +64,11 @@ const sendJson = (res, status, data) => {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(data));
 };
+const readText = (req, limit = 5_000_000) => new Promise((resolve, reject) => {
+  let raw = "";
+  req.on("data", (c) => { raw += c; if (raw.length > limit) { reject(new Error("File too large")); req.destroy(); } });
+  req.on("end", () => resolve(raw));
+});
 const readBody = (req) => new Promise((resolve, reject) => {
   let raw = "";
   req.on("data", (c) => (raw += c));
@@ -118,6 +124,22 @@ const routes = [
     listCache.at = 0;
     return [r.ok ? 200 : r.status, { ok: r.ok, status: r.status, message: r.ok ? "Done" : r.data.message || "PayPal rejected this step", details: r.data.details }];
   }],
+  // ---- Store orders (the merchant's own records, imported from CSV) ----
+  ["GET", "/api/store/orders", async () => {
+    const rows = listCache.rows || [];
+    return store.listOrders().map((o) => {
+      const linked = rows.find((r) => {
+        const m = store.findOrder({ seller_transaction_id: r.seller_transaction_id, buyer_email: r.buyer_email, amount: r.amount?.value });
+        return m.found && m.confidence !== "low" && m.order.order_id === o.order_id;
+      });
+      return { ...o, linked_dispute: linked?.dispute_id || null };
+    });
+  }],
+  ["POST", "/api/store/orders/import", async (_, req) => {
+    try { return store.importOrders(await readText(req)); }
+    catch (err) { return [400, { error: err.message }]; }
+  }],
+  ["POST", "/api/store/orders/reset", () => { store.resetImported(); return { ok: true, total: store.listOrders().length }; }],
   ["POST", "/api/orders", () => pp.createOrder(PRODUCT).then((r) => [r.status, r.data])],
   ["POST", `/api/orders/${ID}/capture`, ([id]) => pp.captureOrder(id).then((r) => [r.status, r.data])],
 ];
@@ -183,6 +205,23 @@ function streamEvents(req, res) {
   clients.add(res);
   req.on("close", () => clients.delete(res));
 }
+// After a (re)start, analyses may be gone (Render's free disk resets on deploy). Re-investigate open
+// disputes that have no verdict, one at a time, so the first visitor sees a ready queue.
+async function warmUp() {
+  if (process.env.WARMUP === "false") return;
+  try {
+    const rows = await disputeRows(true);
+    for (const r of rows.filter((r) => r.status !== "RESOLVED" && !analyses[r.dispute_id])) {
+      const run = startAnalysis(r.dispute_id);
+      if (!run) break; // hourly cap reached
+      await new Promise((done) => run.watchers.add((e) => e === null && done()));
+      console.log(`warm-up: analysed ${r.dispute_id}`);
+    }
+  } catch (err) {
+    console.warn("warm-up failed:", err.message);
+  }
+}
+
 // Background check for new disputes (cheap: one list call plus details for each dispute).
 setInterval(() => disputeRows(true).catch((err) => console.warn("poll failed:", err.message)), 60_000);
 
@@ -243,6 +282,10 @@ http.createServer(async (req, res) => {
     const sse = url.pathname.match(new RegExp(`^/api/disputes/${ID}/analyze$`));
     if (sse && req.method === "GET") return streamAnalysis(sse[1], req, res);
     if (url.pathname === "/api/events" && req.method === "GET") return streamEvents(req, res);
+    if (url.pathname === "/api/store/orders.csv" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="orders-template.csv"' });
+      return res.end(store.ordersToCsv(store.listOrders()));
+    }
     if (url.pathname === "/api/webhooks/paypal" && req.method === "POST") return handleWebhook(req, res);
 
     for (const [method, pattern, handler] of routes) {
@@ -267,6 +310,7 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, async () => {
   console.log(`Dispute Copilot on http://localhost:${PORT}`);
+  warmUp();
   if (WEBHOOK_URL && !webhookId) {
     webhookId = await pp.findWebhookId(WEBHOOK_URL).catch(() => null);
     console.log(webhookId ? `PayPal webhook ${webhookId} -> ${WEBHOOK_URL}` : `No PayPal webhook registered for ${WEBHOOK_URL} (run scripts/register-webhook.mjs)`);
