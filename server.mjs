@@ -41,7 +41,21 @@ async function disputeRows(force = false) {
   }));
   rows.sort((a, b) => (a.seller_response_due || "9").localeCompare(b.seller_response_due || "9"));
   listCache = { at: Date.now(), rows };
+  noticeNewDisputes(rows);
   return rows;
+}
+
+// Sandbox dispute webhooks are unreliable, so polling also detects new disputes and treats them
+// exactly like a CUSTOMER.DISPUTE.CREATED webhook. Whichever arrives first wins.
+let knownDisputes = null;
+function noticeNewDisputes(rows) {
+  if (!knownDisputes) { knownDisputes = new Set(rows.map((r) => r.dispute_id)); return; }
+  for (const r of rows) {
+    if (knownDisputes.has(r.dispute_id)) continue;
+    knownDisputes.add(r.dispute_id);
+    broadcast({ type: "dispute_event", event_type: "CUSTOMER.DISPUTE.CREATED", dispute_id: r.dispute_id, amount: r.amount, reason: r.reason, source: "poll" });
+    if (AUTO_ANALYZE && !analyses[r.dispute_id]) startAnalysis(r.dispute_id);
+  }
 }
 
 // ---- HTTP plumbing ----
@@ -169,6 +183,9 @@ function streamEvents(req, res) {
   clients.add(res);
   req.on("close", () => clients.delete(res));
 }
+// Background check for new disputes (cheap: one list call plus details for each dispute).
+setInterval(() => disputeRows(true).catch((err) => console.warn("poll failed:", err.message)), 60_000);
+
 // Keep idle connections open through proxies (Render closes silent streams).
 setInterval(() => { for (const res of clients) res.write(": ping\n\n"); }, 25_000);
 
@@ -208,7 +225,13 @@ async function handleWebhook(req, res) {
     amount: event.resource?.dispute_amount,
     reason: event.resource?.reason,
   });
-  if (id && AUTO_ANALYZE && event.event_type === "CUSTOMER.DISPUTE.CREATED") startAnalysis(id);
+  if (id && AUTO_ANALYZE && event.event_type === "CUSTOMER.DISPUTE.CREATED" && !analyses[id] && !knownDisputes?.has(id)) {
+    // Simulator events carry made-up dispute IDs; only investigate disputes PayPal can return.
+    if ((await pp.getDispute(id)).ok) {
+      knownDisputes?.add(id);
+      startAnalysis(id);
+    }
+  }
 }
 
 const STATIC = { "/": "index.html", "/shop": "shop.html", "/app.js": "app.js", "/styles.css": "styles.css" };

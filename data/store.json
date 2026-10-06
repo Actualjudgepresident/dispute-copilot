@@ -19,7 +19,13 @@
       "buyer_email": "sb-eoglj53225520@personal.example.com",
       "buyer_name": "John Doe",
       "placed_at": "2026-10-06T10:17:11Z",
-      "items": [{ "title": "The Overstory (paperback)", "qty": 1, "price": "24.00" }],
+      "items": [
+        {
+          "title": "The Overstory (paperback)",
+          "qty": 1,
+          "price": "24.00"
+        }
+      ],
       "shipping_address": "1 Main St, San Jose, CA 95131, US",
       "fulfillment": {
         "status": "IN_TRANSIT",
@@ -28,14 +34,82 @@
         "shipped_at": "2026-10-06T10:41:00Z",
         "estimated_delivery": "2026-10-09",
         "scan_history": [
-          { "time": "2026-10-06T10:41:00Z", "event": "Shipping label created", "location": "Portland, OR" },
-          { "time": "2026-10-06T18:02:00Z", "event": "Accepted at USPS origin facility", "location": "Portland, OR 97208" },
-          { "time": "2026-10-06T23:15:00Z", "event": "In transit to next facility", "location": "Portland, OR distribution center" }
+          {
+            "time": "2026-10-06T10:41:00Z",
+            "event": "Shipping label created",
+            "location": "Portland, OR"
+          },
+          {
+            "time": "2026-10-06T18:02:00Z",
+            "event": "Accepted at USPS origin facility",
+            "location": "Portland, OR 97208"
+          },
+          {
+            "time": "2026-10-06T23:15:00Z",
+            "event": "In transit to next facility",
+            "location": "Portland, OR distribution center"
+          }
         ]
       },
       "customer_comms": [
-        { "time": "2026-10-06T10:17:30Z", "channel": "email", "subject": "Order PP-1042 confirmed", "status": "delivered" },
-        { "time": "2026-10-06T10:41:20Z", "channel": "email", "subject": "Your book has shipped - tracking inside", "status": "delivered" }
+        {
+          "time": "2026-10-06T10:17:30Z",
+          "channel": "email",
+          "subject": "Order PP-1042 confirmed",
+          "status": "delivered"
+        },
+        {
+          "time": "2026-10-06T10:41:20Z",
+          "channel": "email",
+          "subject": "Your book has shipped - tracking inside",
+          "status": "delivered"
+        }
+      ]
+    },
+    {
+      "order_id": "PP-1047",
+      "seller_transaction_id": "43Y462992K0752918",
+      "buyer_email": "sb-eoglj53225520@personal.example.com",
+      "buyer_name": "John Doe",
+      "placed_at": "2026-10-01T16:05:00Z",
+      "items": [
+        {
+          "title": "Braiding Sweetgrass (hardcover, first edition)",
+          "sku": "BS-HC-1ST",
+          "qty": 1,
+          "price": "38.50"
+        }
+      ],
+      "shipping_address": "1 Main St, San Jose, CA 95131, US",
+      "fulfillment": {
+        "status": "DELIVERED",
+        "carrier": "USPS",
+        "tracking_number": "9400111899223817488856",
+        "shipped_at": "2026-10-02T09:12:00Z",
+        "delivered_at": "2026-10-05T14:20:00Z",
+        "packed_sku": "BS-PB-2ND",
+        "packer_note": "Hardcover 1st ed. out of stock at pick time - substituted paperback 2nd ed. (retail $19.00). Customer not contacted.",
+        "scan_history": [
+          {
+            "time": "2026-10-05T14:20:00Z",
+            "event": "Delivered, front door/porch",
+            "location": "San Jose, CA 95131"
+          }
+        ]
+      },
+      "customer_comms": [
+        {
+          "time": "2026-10-01T16:05:20Z",
+          "channel": "email",
+          "subject": "Order PP-1047 confirmed",
+          "status": "delivered"
+        },
+        {
+          "time": "2026-10-02T09:12:30Z",
+          "channel": "email",
+          "subject": "Your book has shipped - tracking inside",
+          "status": "delivered"
+        }
       ]
     },
     {
@@ -44,7 +118,13 @@
       "buyer_email": "maria.k@example.com",
       "buyer_name": "Maria Kowalski",
       "placed_at": "2026-09-28T14:02:00Z",
-      "items": [{ "title": "Braiding Sweetgrass (hardcover)", "qty": 1, "price": "31.50" }],
+      "items": [
+        {
+          "title": "Braiding Sweetgrass (hardcover)",
+          "qty": 1,
+          "price": "31.50"
+        }
+      ],
       "shipping_address": "88 Elm Ave, Austin, TX 78701, US",
       "fulfillment": {
         "status": "DELIVERED",
@@ -54,7 +134,11 @@
         "delivered_at": "2026-10-02T13:47:00Z",
         "signature": false,
         "scan_history": [
-          { "time": "2026-10-02T13:47:00Z", "event": "Delivered, in/at mailbox", "location": "Austin, TX 78701" }
+          {
+            "time": "2026-10-02T13:47:00Z",
+            "event": "Delivered, in/at mailbox",
+            "location": "Austin, TX 78701"
+          }
         ]
       },
       "customer_comms": []
@@ -65,10 +149,25 @@
       "buyer_email": "dev.patel@example.com",
       "buyer_name": "Dev Patel",
       "placed_at": "2026-09-20T08:30:00Z",
-      "items": [{ "title": "$50 Gift Card", "qty": 1, "price": "50.00" }],
-      "fulfillment": { "status": "DIGITAL_DELIVERED", "delivered_at": "2026-09-20T08:30:05Z", "redeemed": false },
+      "items": [
+        {
+          "title": "$50 Gift Card",
+          "qty": 1,
+          "price": "50.00"
+        }
+      ],
+      "fulfillment": {
+        "status": "DIGITAL_DELIVERED",
+        "delivered_at": "2026-09-20T08:30:05Z",
+        "redeemed": false
+      },
       "customer_comms": [
-        { "time": "2026-09-20T08:30:05Z", "channel": "email", "subject": "Your Page & Pine gift card", "status": "delivered" }
+        {
+          "time": "2026-09-20T08:30:05Z",
+          "channel": "email",
+          "subject": "Your Page & Pine gift card",
+          "status": "delivered"
+        }
       ]
     }
   ]
