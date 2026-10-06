@@ -4,7 +4,14 @@
     "name": "Page & Pine Books",
     "owner": "Test Store",
     "description": "Independent online bookshop shipping new and used books across the US.",
-    "support_email": "hello@pageandpine.example"
+    "support_email": "hello@pageandpine.example",
+    "return_address": {
+      "address_line_1": "214 SE Pine St",
+      "admin_area_2": "Portland",
+      "admin_area_1": "OR",
+      "postal_code": "97214",
+      "country_code": "US"
+    }
   },
   "policy": {
     "shipping": "Orders ship within 1 business day via USPS Ground Advantage (2-5 business days). Every order gets a tracking number by email at dispatch.",

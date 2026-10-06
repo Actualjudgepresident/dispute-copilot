@@ -296,7 +296,7 @@ function renderRecommendation(r, executed, trail = "") {
         <div>
           <div class="action-title">${i + 1}. ${esc(ACTION_LABELS[a.type] || a.type)}</div>
           ${a.type === "provide_evidence" ? `<div class="action-meta">${esc(a.evidence_type || "OTHER")}${a.tracking_number ? ` · ${esc(a.carrier || "")} ${esc(a.tracking_number)}` : ""}</div>` : ""}
-          ${a.amount ? `<div class="action-meta">Amount: $${esc(a.amount)}</div>` : ""}
+          ${a.amount ? `<div class="action-meta">Amount: $${esc(a.amount)}${a.offer_type === "REFUND_WITH_RETURN" ? " · refund after the item is returned" : ""}</div>` : ""}
           ${a.message != null ? `<textarea data-msg="${i}">${esc(a.message)}</textarea>` : ""}
         </div>
       </label>`).join("")}
