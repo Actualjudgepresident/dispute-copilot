@@ -2,6 +2,8 @@
 
 **An AI copilot that helps small merchants win (or wisely settle) PayPal disputes.**
 
+**Live demo:** https://dispute-copilot.onrender.com (PayPal sandbox; free hosting, so the first load after a quiet spell can take ~40 s)
+
 Small sellers lose disputes they should win: they don't know what evidence PayPal needs, they miss
 deadlines, and every lost case costs the item *and* the money. Dispute Copilot watches the merchant's
 PayPal disputes, investigates each one with a Claude agent, and proposes a ready-to-send response.
