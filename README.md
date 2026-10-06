@@ -43,7 +43,7 @@ Requirements: Node 20+, a free [PayPal Developer](https://developer.paypal.com) 
 [Anthropic API key](https://console.anthropic.com).
 
 ```bash
-git clone <this repo> && cd dispute-copilot
+git clone https://github.com/Actualjudgepresident/dispute-copilot.git && cd dispute-copilot
 npm install
 cp .env.example .env   # then fill in the three keys
 npm start              # http://localhost:3000
@@ -56,6 +56,9 @@ npm start              # http://localhost:3000
 3. Create a dispute to work on. Sign in to https://www.sandbox.paypal.com as your **Personal**
    sandbox account, pay the **Business** account (or buy from `/shop`), then go to the payment →
    *Report a problem*. It shows up in the queue within a few minutes.
+
+**Deploy your own:** [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Actualjudgepresident/dispute-copilot)
+(uses `render.yaml`; Render asks for the three keys during setup).
 
 **Demo merchant data:** `data/store.json` stands in for the merchant's store backend (orders,
 fulfilment and policy). Orders are matched to disputes by seller transaction ID, then by buyer email.

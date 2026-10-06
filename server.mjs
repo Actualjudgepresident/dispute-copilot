@@ -90,10 +90,24 @@ const routes = [
   ["POST", `/api/orders/${ID}/capture`, ([id]) => pp.captureOrder(id).then((r) => [r.status, r.data])],
 ];
 
+// Guard the Claude bill on a public demo: one run per dispute at a time, and an hourly cap.
+const MAX_RUNS_PER_HOUR = Number(process.env.MAX_RUNS_PER_HOUR || 30);
+const running = new Set();
+let runTimes = [];
+
 // Server-Sent Events: stream the agent's investigation to the browser.
 async function streamAnalysis(id, req, res) {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
   const send = (e) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+  runTimes = runTimes.filter((t) => Date.now() - t < 3600_000);
+  if (running.has(id) || runTimes.length >= MAX_RUNS_PER_HOUR) {
+    send({ type: "error", message: running.has(id)
+      ? "The copilot is already investigating this dispute."
+      : "Demo limit reached for this hour. Try again later." });
+    return res.end();
+  }
+  running.add(id);
+  runTimes.push(Date.now());
   let closed = false;
   req.on("close", () => (closed = true));
   try {
@@ -103,6 +117,8 @@ async function streamAnalysis(id, req, res) {
     listCache.at = 0;
   } catch (err) {
     console.error("analysis failed:", err.message);
+  } finally {
+    running.delete(id);
   }
   res.end();
 }
