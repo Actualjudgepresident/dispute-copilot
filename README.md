@@ -26,7 +26,11 @@ The merchant reviews it and approves with one click.
 3. **Human-approved execution.** Nothing is sent until the merchant approves. They can edit the
    message and untick steps, then the server calls PayPal's `send-message`, `provide-evidence`
    (proof of fulfilment with tracking), `make-offer` or `accept-claim`.
-4. **Sandbox demo controls.** PayPal's sandbox-only endpoints (`require-evidence`, `adjudicate`)
+4. **Real-time via PayPal webhooks.** When a buyer opens a dispute, PayPal calls
+   `/api/webhooks/paypal`. The server verifies the signature with PayPal
+   (`verify-webhook-signature`), alerts every open dashboard, and starts the copilot automatically,
+   so the merchant opens the case with the investigation already done.
+5. **Sandbox demo controls.** PayPal's sandbox-only endpoints (`require-evidence`, `adjudicate`)
    let you move a case through its lifecycle without waiting days.
 
 ## Tools used
@@ -35,6 +39,7 @@ The merchant reviews it and approves with one click.
 |---|---|
 | **PayPal Disputes API** | List and read disputes; send messages, provide evidence, make offers, accept claims; sandbox simulators |
 | **PayPal Orders v2 + JS SDK** | Test shop (`/shop`) used to create real sandbox purchases to dispute |
+| **PayPal Webhooks** | Dispute created/updated/resolved events, signature-verified, drive live updates and auto-analysis |
 | **PayPal Shipment Tracking / Transaction Search** | Evidence sources the agent queries |
 | **Claude (Anthropic API, `claude-opus-5-5`)** | Tool-use agent via the official `@anthropic-ai/sdk` tool runner, with adaptive thinking and structured (Zod-validated) recommendations |
 | **AG Grid Community** | The dispute queue |
@@ -58,6 +63,16 @@ npm start              # http://localhost:3000
 3. Create a dispute to work on. Sign in to https://www.sandbox.paypal.com as your **Personal**
    sandbox account, pay the **Business** account (or buy from `/shop`), then go to the payment →
    *Report a problem*. It shows up in the queue within a few minutes.
+
+**Webhooks (optional, needs a public https URL):**
+
+```bash
+node scripts/register-webhook.mjs https://your-app.onrender.com
+```
+
+This subscribes to `CUSTOMER.DISPUTE.CREATED / UPDATED / RESOLVED`. On Render the app reads its URL
+from `RENDER_EXTERNAL_URL` and looks up the webhook ID itself, so there's nothing else to configure.
+Set `AUTO_ANALYZE=false` to turn off automatic investigation.
 
 **Deploy your own:** [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Actualjudgepresident/dispute-copilot)
 (uses `render.yaml`; Render asks for the three keys during setup).
