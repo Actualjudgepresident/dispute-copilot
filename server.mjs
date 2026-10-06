@@ -63,7 +63,14 @@ const routes = [
     // Presence and length only (never values) to debug hosting config.
     keys: Object.fromEntries(["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "ANTHROPIC_API_KEY"].map((k) => {
       const raw = process.env[k] || "";
-      return [k, raw ? { length: raw.trim().length, had_whitespace: raw !== raw.trim() } : "missing"];
+      const v = raw.trim();
+      return [k, raw ? {
+        length: v.length,
+        had_whitespace: raw !== v,
+        // Real keys only use letters, digits, "-" and "_"; anything else means extra text was pasted.
+        unexpected_chars: [...new Set(v.replace(/[A-Za-z0-9_-]/g, ""))].join("") || null,
+        contains_key_name: /PAYPAL|ANTHROPIC|SECRET|CLIENT/.test(v),
+      } : "missing"];
     })),
   })],
   ["GET", "/api/disputes", async (_, __, url) => disputeRows(url.searchParams.has("refresh"))],
