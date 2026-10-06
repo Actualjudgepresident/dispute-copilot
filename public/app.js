@@ -116,6 +116,7 @@ const grid = agGrid.createGrid($("#grid"), {
     openDrawer(e.data.dispute_id, { autorun: !!analyze });
   },
   overlayNoRowsTemplate: "<span></span>",
+  domLayout: "autoHeight",
 });
 
 // ---------------------------------------------------------------- Data
@@ -132,6 +133,8 @@ async function loadQueue(force = false) {
     return;
   }
   grid.setGridOption("rowData", rows);
+  // Cells like "Investigating…" / "✓ sent" depend on more than the sort value, so redraw them.
+  grid.refreshCells({ force: true, columns: ["analysis"] });
   $("#empty").hidden = rows.length > 0;
   $("#grid").style.display = rows.length ? "" : "none";
   renderKpis();

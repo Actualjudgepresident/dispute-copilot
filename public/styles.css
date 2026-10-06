@@ -88,7 +88,7 @@ main { padding: 20px 24px 40px; max-width: 1400px; margin: 0 auto; }
 .kpi-value { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.grid { height: 420px; }
+.grid { min-height: 120px; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 
 /* Drawer */
@@ -157,7 +157,6 @@ details.card[open] summary { margin-bottom: 10px; }
   main { padding: 16px; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .facts { grid-template-columns: repeat(2, 1fr); }
-  .grid { height: 460px; }
 }
 
 /* Grid cells use row-height line-height; keep inline badges compact. */
