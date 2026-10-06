@@ -62,7 +62,7 @@ const routes = [
   ["GET", "/api/health", () => ({
     ok: true,
     paypal_env: process.env.PAYPAL_ENV || "sandbox",
-    webhook: { url: WEBHOOK_URL, registered: !!webhookId, auto_analyze: AUTO_ANALYZE },
+    webhook: { url: WEBHOOK_URL, registered: !!webhookId, auto_analyze: AUTO_ANALYZE, recent_deliveries: recentDeliveries },
     // Presence and length only (never values) to debug hosting config.
     keys: Object.fromEntries(["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "ANTHROPIC_API_KEY"].map((k) => {
       const raw = process.env[k] || "";
@@ -179,6 +179,8 @@ const WEBHOOK_URL = PUBLIC_URL ? `${PUBLIC_URL}/api/webhooks/paypal` : null;
 let webhookId = process.env.PAYPAL_WEBHOOK_ID || null;
 const AUTO_ANALYZE = process.env.AUTO_ANALYZE !== "false";
 const seenEvents = new Set(); // PayPal retries deliveries; handle each event once
+const recentDeliveries = []; // last few deliveries, shown in /api/health for debugging
+const logDelivery = (d) => { recentDeliveries.unshift({ at: new Date().toISOString(), ...d }); recentDeliveries.length = Math.min(recentDeliveries.length, 10); };
 
 async function handleWebhook(req, res) {
   const event = await readBody(req).catch(() => null);
@@ -186,6 +188,7 @@ async function handleWebhook(req, res) {
 
   webhookId ||= WEBHOOK_URL ? await pp.findWebhookId(WEBHOOK_URL) : null;
   const verified = webhookId && await pp.verifyWebhook(req.headers, event, webhookId);
+  logDelivery({ event_type: event.event_type, dispute_id: event.resource?.dispute_id, verified: !!verified });
   if (!verified) {
     console.warn(`webhook ${event.id} (${event.event_type}) failed signature verification - ignored`);
     return sendJson(res, 400, { error: "Signature verification failed" });
