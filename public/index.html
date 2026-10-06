@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dispute Copilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Dispute Copilot</div>
+        <div class="brand-sub" id="store-name">Page &amp; Pine Books</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="pill pill-sandbox">PayPal sandbox</span>
+      <a class="btn btn-ghost" href="/shop" target="_blank" rel="noopener">Test shop ↗</a>
+      <button class="btn btn-ghost" id="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpis" id="kpis">
+      <div class="kpi"><div class="kpi-label">Open disputes</div><div class="kpi-value" id="k-open">–</div></div>
+      <div class="kpi"><div class="kpi-label">Money at risk</div><div class="kpi-value" id="k-risk">–</div></div>
+      <div class="kpi"><div class="kpi-label">Due in 7 days</div><div class="kpi-value" id="k-due">–</div></div>
+      <div class="kpi"><div class="kpi-label">Copilot says winnable</div><div class="kpi-value" id="k-win">–</div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Dispute queue</h2>
+        <span class="muted" id="updated"></span>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" hidden>
+        No disputes yet. Make a purchase in the <a href="/shop" target="_blank">test shop</a>, then open a dispute as the sandbox buyer.
+      </div>
+    </section>
+  </main>
+
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <div class="muted mono" id="d-id"></div>
+        <h2 id="d-title"></h2>
+      </div>
+      <button class="icon-btn" id="close" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body" id="d-body"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

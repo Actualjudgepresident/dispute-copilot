@@ -1,0 +1,5 @@
+.env
+node_modules/
+data/analyses.json
+.claude/
+.DS_Store

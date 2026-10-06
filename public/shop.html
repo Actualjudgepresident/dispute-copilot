@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page & Pine Books — Test Shop</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f6f4f0; color: #222; margin: 0; padding: 32px 16px; }
+    .card { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+    .mug { font-size: 72px; text-align: center; }
+    h1 { font-size: 20px; margin: 8px 0 4px; }
+    .price { font-size: 18px; color: #555; margin-bottom: 20px; }
+    #result { margin-top: 16px; font-size: 14px; white-space: pre-wrap; }
+    .ok { color: #1a7f37; } .err { color: #c62828; }
+    .badge { display: inline-block; font-size: 12px; background: #fff3cd; color: #7a5a00; padding: 2px 8px; border-radius: 99px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">PayPal sandbox — no real money</span>
+    <div class="mug">📚</div>
+    <h1>The Overstory (paperback)</h1>
+    <div class="price">$24.00</div>
+    <div id="paypal-buttons"></div>
+    <div id="result"></div>
+  </div>
+
+  <script src="https://www.paypal.com/sdk/js?client-id=__CLIENT_ID__&currency=USD&components=buttons"></script>
+  <script>
+    const out = document.getElementById("result");
+    paypal.Buttons({
+      async createOrder() {
+        const res = await fetch("/api/orders", { method: "POST" });
+        const order = await res.json();
+        if (!order.id) throw new Error(JSON.stringify(order));
+        return order.id;
+      },
+      async onApprove({ orderID }) {
+        const res = await fetch(`/api/orders/${orderID}/capture`, { method: "POST" });
+        const data = await res.json();
+        const cap = data.purchase_units?.[0]?.payments?.captures?.[0];
+        if (data.status === "COMPLETED") {
+          out.className = "ok";
+          out.textContent = `Payment complete ✔\nOrder: ${data.id}\nTransaction: ${cap?.id}`;
+        } else {
+          out.className = "err";
+          out.textContent = "Capture failed:\n" + JSON.stringify(data, null, 2);
+        }
+      },
+      onError(err) { out.className = "err"; out.textContent = "Error: " + err; },
+    }).render("#paypal-buttons");
+  </script>
+</body>
+</html>
